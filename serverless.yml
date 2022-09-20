@@ -120,7 +120,7 @@ functions:
         Action:
           - dynamodb:DeleteItem
           - dynamodb:Query
-        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:*
 
   # TODO: Configure this function
   # Provide property for setting up CORS, Authorizer, iamRoleStatements

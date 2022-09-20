@@ -98,11 +98,8 @@ export class TodosAccess {
         await this.docClient.delete({
             TableName: todoId,
             Key: {
-                todoId: todoId
-            },
-            ConditionExpression: 'userId = :userId',
-            ExpressionAttributeValues: {
-                ':userId': userId
+                todoId: todoId,
+                userId: userId
             }
         }).promise()
 
