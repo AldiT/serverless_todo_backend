@@ -31,7 +31,9 @@ export const handler = middy(
 
       return {
         statusCode: 500,
-        body: 'Error while trying to create TODO!'
+        body: JSON.stringify({
+          message: 'Error while trying to create todo!'
+        })
       }
     }
 

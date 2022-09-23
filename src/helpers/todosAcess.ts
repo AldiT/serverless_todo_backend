@@ -12,6 +12,13 @@ const logger = createLogger('TodosAccess')
 
 // TODO: Implement the dataLayer logic
 
+
+export interface AttachFileResponse {
+    todo: TodoItem,
+    uploadUrl: string
+}
+
+
 export class TodosAccess {
 
     constructor(
@@ -66,11 +73,11 @@ export class TodosAccess {
     }
 
     //PATCH TODOs
-    async updateTodo(userId: string, todoId: string, name: string, dueDate: string, done: boolean): Promise<void>{
+    async updateTodo(userId: string, todoId: string, name: string, dueDate: string, done: boolean): Promise<TodoItem>{
         logger.info(`Updating todo with name: ${name}`);
 
         // Update the item in the table
-        await this.docClient.update({
+        const result = await this.docClient.update({
             TableName: this.todosTable,
             Key: {
                 todoId: todoId,
@@ -87,22 +94,58 @@ export class TodosAccess {
             }
         }).promise();
 
+        const newTodo: TodoItem = result.Attributes as TodoItem;
 
+        return newTodo;
+    }
+
+    async attachFileToTodo(userId: string, todoId: string): Promise<AttachFileResponse> {
+        logger.info("Attaching file to todo: ", todoId);
+
+        const uploadUrl: string = await this.getS3UploadUrl(todoId);
+
+        const result = await this.docClient.update({
+            TableName: this.todosTable,
+            Key:{
+                todoId: todoId,
+                userId: userId
+            },
+            UpdateExpression: 'set #url = :url',
+            ExpressionAttributeNames: {
+                '#url': 'attachmentUrl'
+            },
+            ExpressionAttributeValues: {
+                ':url': `https://${this.attachmentsBucket}.s3.amazonaws.com/${todoId}`
+            },
+            ReturnValues: 'ALL_NEW'
+        }).promise();
+
+        const newTodo: TodoItem = result.Attributes as TodoItem;
+
+        const attachFileResponse: AttachFileResponse = {
+            todo: newTodo,
+            uploadUrl: uploadUrl
+        }
         
+        return attachFileResponse;
     }
 
     //DELETE TODOs
-    async deleteTodo(userId: string, todoId: string): Promise<void> {
+    async deleteTodo(userId: string, todoId: string): Promise<TodoItem> {
         logger.info(`Deleting the TODO with id: ${todoId}`);
 
-        await this.docClient.delete({
-            TableName: todoId,
+        const result = await this.docClient.delete({
+            TableName: this.todosTable,
             Key: {
                 todoId: todoId,
                 userId: userId
-            }
+            },
+            ReturnValues: 'ALL_NEW'
         }).promise()
 
+        const deletedTodo: TodoItem = result.Attributes as TodoItem;
+
+        return deletedTodo;
     }
 
 

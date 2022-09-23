@@ -9,6 +9,7 @@ import { UpdateTodoRequest } from '../../requests/UpdateTodoRequest'
 import { getUserId } from '../utils'
 import { updateTodo, todoExists } from '../../helpers/todos'
 import { createLogger } from '../../utils/logger'
+import { TodoItem } from '../../models/TodoItem'
 
 const logger = createLogger("UpdateTodoHttp")
 
@@ -22,12 +23,12 @@ export const handler = middy(
       const exists = await todoExists(userId, todoId);
 
       if (exists){
-        await updateTodo(userId, todoId, updatedTodo.name, updatedTodo.dueDate, updatedTodo.done);
+        const newTodo: TodoItem = await updateTodo(userId, todoId, updatedTodo.name, updatedTodo.dueDate, updatedTodo.done);
 
         return {
           statusCode: 200,
           body: JSON.stringify({
-            item: "Updated"
+            item: newTodo
           })
         }
 
@@ -35,7 +36,9 @@ export const handler = middy(
         
         return {
           statusCode: 404,
-          body: 'Todo with given Id does not exist!'
+          body: JSON.stringify({
+            message: 'Todo with given Id not found!'
+          })
         }
       }
 
@@ -44,7 +47,9 @@ export const handler = middy(
       logger.error(e)
       return {
         statusCode: 500,
-        body: 'Error happened while trying to update Todo!'
+        body: JSON.stringify({
+          message: 'Error happened while trying to update todo!'
+        })
       }
     }
 })

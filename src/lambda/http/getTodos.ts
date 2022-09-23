@@ -32,7 +32,9 @@ export const handler = middy(
       logger.error(e)
       return {
         statusCode: 500,
-        body: 'Error getting Todos!'
+        body: JSON.stringify({
+            message: 'Error getting Todos!'
+          })
         }
     }
 })
