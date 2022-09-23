@@ -5,6 +5,8 @@ import { createLogger } from '../utils/logger'
 import { TodoItem } from '../models/TodoItem'
 import { TodoUpdate } from '../models/TodoUpdate';
 import { bool } from 'aws-sdk/clients/signer'
+import { UpdateTodoRequest } from '../requests/UpdateTodoRequest'
+import { CreateTodoRequest } from '../requests/CreateTodoRequest'
 
 const XAWS = AWSXRay.captureAWS(AWS)
 
@@ -22,13 +24,10 @@ export interface AttachFileResponse {
 export class TodosAccess {
 
     constructor(
-        private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient(),
-        private readonly s3: AWS.S3 = new AWS.S3({signatureVersion: 'v4'}),
+        private readonly docClient: DocumentClient = new XAWS.DynamoDB.DocumentClient(),
         private readonly todosTable: string = process.env.TODOS_TABLE,
         private readonly todosCreatedAtIndex: string = process.env.TODOS_CREATED_AT_INDEX,
-        private readonly signedUrlExpiration: number = Number(process.env.SIGNED_URL_EXPIRATION),
-        private readonly attachmentsBucket: string = process.env.ATTACHMENT_S3_BUCKET,
-        private readonly userIdIndex: string = process.env.TODOS_USER_ID_INDEX
+        private readonly attachmentsBucket: string = process.env.ATTACHMENT_S3_BUCKET
     ){
 
     }
@@ -39,7 +38,7 @@ export class TodosAccess {
 
         const result = await this.docClient.query({
             TableName: this.todosTable,
-            IndexName: this.userIdIndex,
+            IndexName: this.todosCreatedAtIndex,
             KeyConditionExpression: 'userId = :userId',
             ExpressionAttributeValues: {
                 ':userId': userId
@@ -52,15 +51,15 @@ export class TodosAccess {
     }
 
     //POST TODOs
-    async createTodo(userId: string, todoId: string, name: string, dueDate: string): Promise<TodoItem>{
+    async createTodo(userId: string, todoId: string, createTodoRequest: CreateTodoRequest): Promise<TodoItem>{
         logger.info(`Adding a new todo for user: ${userId}`);
 
         const newTodo: TodoItem = {
             todoId: todoId,
             userId: userId,
             createdAt: new Date().toISOString(),
-            name: name,
-            dueDate: dueDate,
+            name: createTodoRequest.name,
+            dueDate: createTodoRequest.dueDate,
             done: false
         }
 
@@ -73,8 +72,8 @@ export class TodosAccess {
     }
 
     //PATCH TODOs
-    async updateTodo(userId: string, todoId: string, name: string, dueDate: string, done: boolean): Promise<TodoItem>{
-        logger.info(`Updating todo with name: ${name}`);
+    async updateTodo(userId: string, todoId: string, updateTodoRequest: UpdateTodoRequest): Promise<TodoItem>{
+        logger.info(`Updating todo with id: ${todoId}`);
 
         // Update the item in the table
         const result = await this.docClient.update({
@@ -88,10 +87,11 @@ export class TodosAccess {
                 '#n': 'name'
             },
             ExpressionAttributeValues: {
-                ':dueDate': dueDate,
-                ':done': done,
-                ':n': name
-            }
+                ':dueDate': updateTodoRequest.dueDate,
+                ':done': updateTodoRequest.done,
+                ':n': updateTodoRequest.name
+            },
+            ReturnValues: 'ALL_NEW'
         }).promise();
 
         const newTodo: TodoItem = result.Attributes as TodoItem;
@@ -99,10 +99,8 @@ export class TodosAccess {
         return newTodo;
     }
 
-    async attachFileToTodo(userId: string, todoId: string): Promise<AttachFileResponse> {
-        logger.info("Attaching file to todo: ", todoId);
-
-        const uploadUrl: string = await this.getS3UploadUrl(todoId);
+    async attachFileToTodo(userId: string, todoId: string): Promise<TodoItem> {
+        logger.info(`Attaching file to todo: ${todoId}`);
 
         const result = await this.docClient.update({
             TableName: this.todosTable,
@@ -119,15 +117,11 @@ export class TodosAccess {
             },
             ReturnValues: 'ALL_NEW'
         }).promise();
+        
 
         const newTodo: TodoItem = result.Attributes as TodoItem;
 
-        const attachFileResponse: AttachFileResponse = {
-            todo: newTodo,
-            uploadUrl: uploadUrl
-        }
-        
-        return attachFileResponse;
+        return newTodo;
     }
 
     //DELETE TODOs
@@ -140,7 +134,7 @@ export class TodosAccess {
                 todoId: todoId,
                 userId: userId
             },
-            ReturnValues: 'ALL_NEW'
+            ReturnValues: 'ALL_OLD'
         }).promise()
 
         const deletedTodo: TodoItem = result.Attributes as TodoItem;
@@ -164,13 +158,5 @@ export class TodosAccess {
 
         
         return !!result.Count;
-    }
-
-    async getS3UploadUrl(todoId: string): Promise<string> {
-        return this.s3.getSignedUrl('putObject', {
-            Bucket: this.attachmentsBucket,
-            Key: todoId,
-            Expires: this.signedUrlExpiration
-        });
     }
 }

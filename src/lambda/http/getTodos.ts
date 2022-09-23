@@ -12,10 +12,9 @@ import { createLogger } from '../../utils/logger'
 
 const logger = createLogger('GetTodoHttp');
 
-// TODO: Get all TODO items for a current user
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-    // Write your code here
+    logger.info(`Processing get Todos request: \n${event}`);
     try{
       const userId: string = getUserId(event);
       const todos = await getTodos(userId);

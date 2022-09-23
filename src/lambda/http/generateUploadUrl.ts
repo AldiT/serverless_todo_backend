@@ -6,7 +6,7 @@ import { cors, httpErrorHandler } from 'middy/middlewares'
 import { getUserId } from '../utils'
 import { attachFileToTodo, todoExists } from '../../helpers/todos'
 import { createLogger } from '../../utils/logger'
-import { AttachFileResponse } from '../../helpers/todosAcess'
+import { AttachFileResponse } from '../../helpers/todos'
 
 const logger = createLogger("GenerateAttachmentUrlTood")
 
@@ -15,7 +15,7 @@ const logger = createLogger("GenerateAttachmentUrlTood")
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-
+    logger.info(`Processing generateUploadUrlRequest Todo request: \n${event}`);
     try{
       const todoId = event.pathParameters.todoId
       const userId = getUserId(event);

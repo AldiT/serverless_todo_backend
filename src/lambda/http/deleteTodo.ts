@@ -12,12 +12,11 @@ const logger = createLogger("DeleteTodoHttp")
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-    const todoId: string = event.pathParameters.todoId;
-    const userId: string = getUserId(event);
-    // TODO: Remove a TODO item by id
-    
-    try{
+    logger.info(`Processing delete Todo request: \n${event}`);
 
+    try{
+      const todoId: string = event.pathParameters.todoId;
+      const userId: string = getUserId(event);
       const exists = await todoExists(userId, todoId);
       
       if (!exists){
@@ -34,12 +33,11 @@ export const handler = middy(
         return {
           statusCode: 200,
           body: JSON.stringify({
-            item: deleteTodo
+            item: deletedTodo
           })
       }
-      
+
     }catch(e){
-      console.log(e)
       logger.error(e)
       return {
         statusCode: 500,
